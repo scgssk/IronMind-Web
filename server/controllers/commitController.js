@@ -192,3 +192,41 @@ exports.getYesterdaysRegret = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+exports.getStreak = async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const commits = await Commit.find({ userId }).sort({ date: -1 });
+
+    // Group by day
+    const grouped = {};
+    for (const commit of commits) {
+      const key = new Date(commit.date).toISOString().split("T")[0];
+      if (!grouped[key]) grouped[key] = [];
+      grouped[key].push(commit);
+    }
+
+    const today = new Date();
+    let streak = 0;
+
+    for (let i = 0; ; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() - i);
+      const dateKey = date.toISOString().split("T")[0];
+
+      const dayCommits = grouped[dateKey];
+
+      if (!dayCommits || dayCommits.length === 0) break;
+
+      const allCompleted = dayCommits.every((c) => c.completed);
+      if (!allCompleted) break;
+
+      streak++;
+    }
+
+    res.json({ streak });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

@@ -9,7 +9,8 @@ const {
     getCommitHistory,
     updateRegret,
     getYesterdaysCommits,
-    getYesterdaysRegret
+    getYesterdaysRegret,
+    getStreak
 } = require("../controllers/commitController");
 
 router.post("/", createCommit);
@@ -21,6 +22,6 @@ router.patch("/:id", updateCommit);
 router.patch("/regret/:id", updateRegret);
 router.get("/yesterday/:userId", getYesterdaysCommits);
 router.get("/regret/yesterday/:userId", getYesterdaysRegret);
-
+router.get("/streak/:userId", getStreak);
 
 module.exports = router;

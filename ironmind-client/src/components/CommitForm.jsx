@@ -6,6 +6,8 @@ import {
   deleteCommit,
   updateCommit,
 } from "../services/api";
+import { useStreak } from "../context/StreakContext";
+
 
 const CommitForm = () => {
   const userId = "sk";
@@ -14,6 +16,7 @@ const CommitForm = () => {
   const [reason, setReason] = useState("");
   const [commits, setCommits] = useState([]);
   const [loading, setLoading] = useState(true);
+  const { refreshStreak } = useStreak();
 
   const [editId, setEditId] = useState(null);
   const [editFocus, setEditFocus] = useState("");
@@ -51,6 +54,7 @@ const CommitForm = () => {
     try {
       await markCommitComplete(id);
       fetchCommits();
+      refreshStreak(); // ✅ Update streak on complete
     } catch (err) {
       console.error("❌ Failed to complete task:", err);
     }
@@ -90,7 +94,9 @@ const CommitForm = () => {
   return (
     <div className="w-full max-w-md mx-auto flex flex-col gap-8">
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-        <label className="font-bold text-lg">What will you focus on today?</label>
+        <label className="font-bold text-lg">
+          What will you focus on today?
+        </label>
         <input
           type="text"
           value={focus}

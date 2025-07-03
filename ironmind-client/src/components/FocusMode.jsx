@@ -5,25 +5,32 @@ import Layout from "./Layout";
 
 const FocusMode = () => {
   const userId = "sk";
-  const [tasks, setTasks] = useState([]);
-  const { quote } = useStreak();
 
+  const [tasks, setTasks] = useState([]);
   const [initialMinutes, setInitialMinutes] = useState(25);
   const [timeLeft, setTimeLeft] = useState(25 * 60);
   const [running, setRunning] = useState(false);
   const [onBreak, setOnBreak] = useState(false);
+  const [alarmMuted, setAlarmMuted] = useState(false);
+  const { quote, refreshStreak } = useStreak();
 
   const alarmSound = new Audio("/alarm.mp3");
 
-  useEffect(() => {
-    axios
-      .get(`http://localhost:5000/api/commit/today/${userId}`)
-      .then((res) => {
-        const incomplete = res.data.filter((c) => !c.completed);
-        setTasks(incomplete);
-      });
-  }, []);
+  const fetchTasks = async () => {
+    try {
+      const res = await axios.get(
+        `http://localhost:5000/api/commit/today/${userId}`
+      );
+      const incomplete = res.data.filter((c) => !c.completed);
+      setTasks(incomplete);
+    } catch (err) {
+      console.error("Failed to fetch tasks:", err.message);
+    }
+  };
 
+  useEffect(() => {
+    fetchTasks();
+  }, []);
 
   useEffect(() => {
     if (!running) return;
@@ -32,19 +39,18 @@ const FocusMode = () => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          alarmSound.play();
+
+          if (!alarmMuted) alarmSound.play();
 
           if (onBreak) {
-            // Break ends
             setRunning(false);
             setOnBreak(false);
             setTimeLeft(initialMinutes * 60);
             exitFullscreen();
           } else {
-            // Focus ends
             setOnBreak(true);
-            setTimeLeft(5 * 60); // 5 min break
-            setRunning(true); // auto-start break
+            setTimeLeft(5 * 60);
+            setRunning(true);
           }
 
           return 0;
@@ -54,10 +60,12 @@ const FocusMode = () => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [running, onBreak, initialMinutes]);
+  }, [running, onBreak, initialMinutes, alarmMuted]);
 
   const format = (sec) =>
-    `${String(Math.floor(sec / 60)).padStart(2, "0")}:${String(sec % 60).padStart(2, "0")}`;
+    `${String(Math.floor(sec / 60)).padStart(2, "0")}:${String(
+      sec % 60
+    ).padStart(2, "0")}`;
 
   const enterFullscreen = () => {
     const el = document.documentElement;
@@ -82,17 +90,27 @@ const FocusMode = () => {
     exitFullscreen();
   };
 
-  useEffect(() => {
-  const warnOnExit = (e) => {
-    if (running) {
-      e.preventDefault();
-      e.returnValue = ""; // triggers native browser prompt
+
+  const handleComplete = async (id) => {
+    try {
+      await axios.patch(`http://localhost:5000/api/commit/${id}/complete`);
+      fetchTasks();
+      refreshStreak(); // ✅ Update streak immediately
+    } catch (err) {
+      console.error("Error marking task complete:", err.message);
     }
   };
-  window.addEventListener("beforeunload", warnOnExit);
-  return () => window.removeEventListener("beforeunload", warnOnExit);
-}, [running]);
 
+  useEffect(() => {
+    const warnOnExit = (e) => {
+      if (running) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", warnOnExit);
+    return () => window.removeEventListener("beforeunload", warnOnExit);
+  }, [running]);
 
   return (
     <Layout>
@@ -100,7 +118,7 @@ const FocusMode = () => {
         <h1 className="text-3xl font-bold text-blue-400">🧠 Focus Mode</h1>
         <p className="text-lg italic text-yellow-300">“{quote}”</p>
 
-        <div className="flex gap-2 items-center text-white">
+        <div className="flex gap-4 items-center text-white">
           <label htmlFor="duration" className="font-semibold">
             ⏱ Duration:
           </label>
@@ -113,14 +131,25 @@ const FocusMode = () => {
               setInitialMinutes(newTime);
               setTimeLeft(newTime * 60);
             }}
-            className="bg-gray-700 text-white px-2 py-1 rounded"
+            className="bg-gray-700 text-white px-2 py-1 h-8 rounded"
           >
-            <option value={15}>15 min</option>
-            <option value={25}>25 min</option>
-            <option value={30}>30 min</option>
-            <option value={45}>45 min</option>
-            <option value={60}>60 min</option>
+            {[1, 25, 30, 45, 60].map((min) => (
+              <option key={min} value={min}>
+                {min} min
+              </option>
+            ))}
           </select>
+
+          <button
+            onClick={() => setAlarmMuted(!alarmMuted)}
+            className={`ml-6 px-3 py-1 h-8 rounded text-sm font-medium transition-colors ${
+              alarmMuted
+                ? "bg-red-600 hover:bg-red-700 text-white"
+                : "bg-green-600 hover:bg-green-700 text-white"
+            }`}
+          >
+            {alarmMuted ? "🔇 Alarm Muted" : "🔊 Alarm On"}
+          </button>
         </div>
 
         <div className="bg-gray-800 p-6 rounded shadow-lg w-full max-w-md">
@@ -128,9 +157,20 @@ const FocusMode = () => {
           {tasks.length === 0 ? (
             <p className="text-green-400">✅ All Done!</p>
           ) : (
-            <ul className="list-disc list-inside text-lg">
+            <ul className="text-lg space-y-2">
               {tasks.map((task) => (
-                <li key={task._id}>{task.focus}</li>
+                <li
+                  key={task._id}
+                  className="flex items-center justify-between"
+                >
+                  <span>{task.focus}</span>
+                  <button
+                    onClick={() => handleComplete(task._id)}
+                    className="text-sm bg-green-600 px-3 py-1 rounded hover:bg-green-700"
+                  >
+                    ✓ Done
+                  </button>
+                </li>
               ))}
             </ul>
           )}
