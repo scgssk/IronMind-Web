@@ -14,6 +14,7 @@ app.use(express.json());
 // Routes
 app.use('/api/commit', require('./routes/commitRoutes'));
 app.use("/api/ai", aiRoutes);
+app.use('/api/motivation', require('./routes/motivationRoutes'));
 
 
 const PORT = process.env.PORT || 5000;

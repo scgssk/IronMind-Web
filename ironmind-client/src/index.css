@@ -1,1 +1,25 @@
 @import "tailwindcss";
+
+/* heatmap cell base */
+.heatmap-cell {
+  rx: 4px;
+  ry: 4px;
+  transition: transform 0.15s ease-in-out, fill 0.3s ease;
+  stroke: #374151; /* Tailwind gray-700 border */
+  stroke-width: 1px;
+}
+
+
+/* Color Intensity Levels */
+.heatmap-cell.empty {
+  fill: #1f2937; /* gray-800 */
+}
+.heatmap-cell.low {
+  fill: #f59e0b; /* amber-500 */
+}
+.heatmap-cell.medium {
+  fill: #10b981; /* green-500 */
+}
+.heatmap-cell.high {
+  fill: #22c55e; /* green-400 */
+}
